@@ -1,0 +1,108 @@
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:${TRAEFIK_IMAGE_TAG:-latest}
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=false
+      - --ping=true
+      - --ping.entrypoint=traefik
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.traefik.address=:9000
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      # To use DNS-01 with Cloudflare instead of HTTP-01, set TRAEFIK_ACME_DNS01=true in .env
+      # and provide secrets/cloudflare_api_token
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/ping || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    environment:
+      - TRAEFIK_ACME_DNS01=${TRAEFIK_ACME_DNS01:-false}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./data/traefik/acme.json:/acme.json
+      - ./scripts:/entrypoints:ro
+    secrets:
+      - source: cloudflare_api_token
+        target: cloudflare_api_token
+        optional: true
+    entrypoint: ["/bin/sh", "/entrypoints/traefik-entrypoint.sh"]
+    networks:
+      - edge
+      - internal
+    labels:
+      - "traefik.enable=true"
+      # Optional secure dashboard (disabled by default in static config)
+      # See README to enable safely behind basic auth + IP whitelist
+
+  headscale:
+    image: headscale/headscale:${HEADSCALE_IMAGE_TAG:-latest}
+    container_name: headscale
+    restart: unless-stopped
+    depends_on:
+      - traefik
+    command: ["serve"]
+    environment:
+      - HEADSCALE_SERVER_URL=${HEADSCALE_SERVER_URL}
+      - HEADSCALE_BASE_DOMAIN=${HEADSCALE_BASE_DOMAIN}
+      - HEADSCALE_LISTEN_ADDR=0.0.0.0:8080
+      - HEADSCALE_METRICS_LISTEN_ADDR=127.0.0.1:9090
+      - HEADSCALE_ACME_ENABLED=false
+      - HEADSCALE_DATABASE_URL=${HEADSCALE_DATABASE_URL:-}
+      - HEADSCALE_USE_SQLITE=${HEADSCALE_USE_SQLITE:-false}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/health || nc -z 127.0.0.1 8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - ./data/headscale:/var/lib/headscale
+      - ./scripts:/entrypoints:ro
+    secrets:
+      - source: postgres_password
+        target: postgres_password
+        optional: true
+    entrypoint: ["/bin/sh", "/entrypoints/headscale-entrypoint.sh"]
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.headscale.rule=Host(`${HEADSCALE_FQDN}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.headscale.entrypoints=websecure"
+      - "traefik.http.routers.headscale.tls=true"
+      - "traefik.http.routers.headscale.tls.certresolver=le"
+      - "traefik.http.services.headscale.loadbalancer.server.port=8080"
+      - "traefik.http.routers.headscale.middlewares=sec-headers@file,compress@file,rate-limit@file"
+
+secrets:
+  cloudflare_api_token:
+    file: ./secrets/cloudflare_api_token
+  postgres_password:
+    file: ./secrets/postgres_password
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true

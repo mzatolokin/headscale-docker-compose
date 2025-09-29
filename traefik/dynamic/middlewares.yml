@@ -1,0 +1,47 @@
+http:
+  middlewares:
+    # Redirect plain HTTP to HTTPS (used on web entrypoint)
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    # Strict security headers
+    sec-headers:
+      headers:
+        sslRedirect: true
+        contentTypeNoSniff: true
+        browserXssFilter: true
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        referrerPolicy: "no-referrer"
+        permissionsPolicy: "geolocation=(), microphone=(), camera=()"
+        customFrameOptionsValue: "SAMEORIGIN"
+
+    # Basic compression
+    compress:
+      compress: {}
+
+    # Simple rate limit
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    # Optional dashboard protection (use in override only)
+    traefik-auth:
+      basicAuth:
+        usersFile: "/auth.htpasswd"
+
+    allow-local:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+
+

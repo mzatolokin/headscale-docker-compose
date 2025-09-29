@@ -1,0 +1,33 @@
+server_url: "${HEADSCALE_SERVER_URL}"
+listen_addr: "0.0.0.0:8080"
+metrics_listen_addr: "127.0.0.1:9090"
+prefixes:
+  v6nat: fd7a:115c:a1e0::/48
+  v4: 100.64.0.0/10
+  v6: fd7a:115c:a1e0::/48
+
+dns_config:
+  base_domain: "${HEADSCALE_BASE_DOMAIN}"
+  magic_dns: true
+
+log:
+  level: info
+
+database:
+  type: ${EFFECTIVE_DB_TYPE}
+  postgres:
+    connection_string: "${HEADSCALE_DATABASE_URL}"
+  sqlite:
+    path: "/var/lib/headscale/db.sqlite"
+
+derp:
+  server:
+    enabled: false
+
+tls_letsencrypt_challenge:
+  enabled: false
+
+tls_cert_path: ""
+tls_key_path: ""
+
+

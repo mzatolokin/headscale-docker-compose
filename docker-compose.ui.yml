@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+
+  headscale-ui:
+    container_name: headscale-ui
+    image: ghcr.io/gurucomputing/headscale-ui:${HEADSCALE_UI_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - headscale
+      - traefik
+    networks:
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.headscale-ui.rule=Host(`${HEADSCALE_FQDN}`) && PathPrefix(`${HEADSCALE_UI_PATH_PREFIX:-/web}`)
+      - traefik.http.routers.headscale-ui.entrypoints=websecure
+      - traefik.http.routers.headscale-ui.tls.certresolver=le
+      - traefik.http.services.headscale-ui.loadbalancer.server.port=80
+      - traefik.http.routers.headscale-ui.middlewares=${TRAEFIK_DEFAULT_MIDDLEWARES:-sec-headers@file,compress@file,rate-limit@file},traefik-auth@file
+
+
