@@ -14,16 +14,17 @@ chmod 700 secrets
 touch data/traefik/acme.json && chmod 600 data/traefik/acme.json
 ```
 
-2) Provide secrets
-
-- If using DNS-01 with Cloudflare: put your API token in `secrets/cloudflare_api_token`.
-- If using Postgres: put the DB password in `secrets/postgres_password` and set `HEADSCALE_DATABASE_URL` accordingly.
-
-3) Configure `.env`
+2) Configure `.env`
 
 - Set `ACME_EMAIL`, `HEADSCALE_FQDN`, `HEADSCALE_SERVER_URL`, `HEADSCALE_BASE_DOMAIN`.
 - Choose ACME mode: `TRAEFIK_ACME_DNS01=true` (Cloudflare) or keep `false` for HTTP-01.
 - For sqlite fallback: set `HEADSCALE_USE_SQLITE=true` and leave `HEADSCALE_DATABASE_URL` empty.
+
+3) Generate Headscale config
+
+```bash
+./scripts/generate-config.sh
+```
 
 4) Launch
 
@@ -32,6 +33,10 @@ docker compose up -d
 ```
 
 Headscale will be available at `https://$HEADSCALE_FQDN` when certs are issued.
+
+**Optional secrets:**
+- If using DNS-01 with Cloudflare: put your API token in `secrets/cloudflare_api_token`.
+- If using Postgres: put the DB password in `secrets/postgres_password` and set `HEADSCALE_DATABASE_URL` accordingly.
 
 ### Environment variables
 
@@ -52,13 +57,6 @@ Headscale will be available at `https://$HEADSCALE_FQDN` when certs are issued.
 | `TRAEFIK_DASHBOARD_HOST` | Dashboard host in override (default `dashboard.localtest.me`) |
 | `TRAEFIK_DEFAULT_MIDDLEWARES` | Default middlewares list for routers (file refs) |
 
-### Security notes
-
-- Do not expose Headscale ports publicly; only Traefik should bind 80/443.
-- Store sensitive data only in `secrets/` via Docker secrets; never commit secrets or `.env` with secrets.
-- Ensure `data/traefik/acme.json` has `600` permissions; Traefik will store private keys there.
-- Traefik dashboard is disabled by default; if enabled via `docker-compose.override.yml`, protect with basic auth and IP allowlisting.
-- Keep images pinned to fixed versions; avoid `:latest`.
 
 ### Backup and restore
 
