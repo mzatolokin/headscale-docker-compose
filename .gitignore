@@ -1,18 +1,9 @@
 # Environment and secrets
 .env
-secrets/
 
 # Data and state
 data/
-acme.json
-
-# Headscale keys and database (if bind-mounted)
-headscale/keys/
-headscale/db/
-
-# Traefik
-traefik/acme.json
-traefik/logs/
+headscale/
 
 # macOS
 .DS_Store

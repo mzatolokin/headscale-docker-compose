@@ -26,6 +26,19 @@ if [ ! -f data/traefik/acme.json ]; then
   chmod 600 data/traefik/acme.json
 fi
 
+# Create basic auth users file if it doesn't exist
+if [ ! -f data/traefik/users ]; then
+  echo "Creating basic auth users file..."
+  echo "# Basic auth users for headscale-ui"
+  echo "# Format: username:hashed_password"
+  echo "# Generate password hash with: htpasswd -nb username password"
+  echo "# Example: admin:\$2y\$10\$example_hash_here"
+  echo "# Replace with your actual username and hashed password"
+  echo "admin:\$2y\$10\$example_hash_here" > data/traefik/users
+  chmod 600 data/traefik/users
+  echo "⚠️  Please edit data/traefik/users with your actual username and password hash"
+fi
+
 echo "Generating headscale config..."
 echo "Server URL: $HEADSCALE_SERVER_URL"
 echo "Base Domain: $HEADSCALE_BASE_DOMAIN"
