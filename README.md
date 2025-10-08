@@ -29,14 +29,29 @@ touch data/traefik/acme.json && chmod 600 data/traefik/acme.json
 4) Launch
 
 ```bash
+# Basic stack (Headscale + Traefik)
 docker compose up -d
+
+# With UI (requires basic auth setup)
+docker compose -f docker-compose.yml -f docker-compose.ui.yml up -d
 ```
 
 Headscale will be available at `https://$HEADSCALE_FQDN` when certs are issued.
+UI will be available at `https://$HEADSCALE_UI_FQDN` (if configured).
 
 **Optional secrets:**
 - If using DNS-01 with Cloudflare: put your API token in `secrets/cloudflare_api_token`.
 - If using Postgres: put the DB password in `secrets/postgres_password` and set `HEADSCALE_DATABASE_URL` accordingly.
+
+**UI Basic Authentication:**
+- Edit `data/traefik/users` with your username and password hash:
+  ```bash
+  # Generate password hash
+  htpasswd -nb username password
+  
+  # Edit users file
+  nano data/traefik/users
+  ```
 
 ### Environment variables
 
@@ -53,7 +68,8 @@ Headscale will be available at `https://$HEADSCALE_FQDN` when certs are issued.
 | `TRAEFIK_IMAGE_TAG` | Traefik image tag (default `latest`) |
 | `HEADSCALE_IMAGE_TAG` | Headscale image tag (default `latest`) |
 | `HEADSCALE_UI_IMAGE_TAG` | Headscale UI image tag (default `latest`) |
-| `HEADSCALE_UI_PATH_PREFIX` | UI path prefix under FQDN in override (default `/web`) |
+| `HEADSCALE_UI_FQDN` | UI domain for separate UI access (e.g., `ui.example.com`) |
+| `HEADSCALE_UI_PATH_PREFIX` | UI path prefix under FQDN in override (default `/`) |
 | `TRAEFIK_DASHBOARD_HOST` | Dashboard host in override (default `dashboard.localtest.me`) |
 | `TRAEFIK_DEFAULT_MIDDLEWARES` | Default middlewares list for routers (file refs) |
 
@@ -62,4 +78,5 @@ Headscale will be available at `https://$HEADSCALE_FQDN` when certs are issued.
 
 - Traefik ACME: `data/traefik/acme.json` (contains certificates and private keys).
 - Headscale: `data/headscale/` (keys and sqlite DB if used).
+- UI Auth: `data/traefik/users` (basic auth credentials).
 - If using Postgres: back up the external database according to your RPO/RTO.
