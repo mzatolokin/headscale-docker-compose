@@ -24,24 +24,17 @@ services:
       - "80:80"
       - "443:443"
       - "3478:3478/udp"  # DERP STUN
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/ping || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
     environment:
       - TRAEFIK_ACME_DNS01=${TRAEFIK_ACME_DNS01:-false}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data/traefik/acme.json:/acme.json
+      - ./data/traefik/users:/etc/traefik/users:ro
     networks:
       - edge
       - internal
     labels:
       - "traefik.enable=true"
-      # Optional secure dashboard (disabled by default in static config)
-      # See README to enable safely behind basic auth + IP whitelist
-      # Explicit HTTP -> HTTPS redirect router for your FQDN (helps ACME trigger)
       - "traefik.http.routers.redirect.rule=Host(`${HEADSCALE_FQDN}`)"
       - "traefik.http.routers.redirect.entrypoints=web"
       - "traefik.http.routers.redirect.middlewares=redirectscheme@docker"
@@ -55,14 +48,6 @@ services:
     depends_on:
       - traefik
     command: ["serve"]
-    environment:
-      - HEADSCALE_SERVER_URL=${HEADSCALE_SERVER_URL}
-      - HEADSCALE_BASE_DOMAIN=${HEADSCALE_BASE_DOMAIN}
-      - HEADSCALE_LISTEN_ADDR=0.0.0.0:8080
-      - HEADSCALE_METRICS_LISTEN_ADDR=127.0.0.1:9090
-      - HEADSCALE_ACME_ENABLED=false
-      - HEADSCALE_DATABASE_URL=${HEADSCALE_DATABASE_URL:-}
-      - HEADSCALE_USE_SQLITE=${HEADSCALE_USE_SQLITE:-false}
     volumes:
       - ./data/headscale:/var/lib/headscale
       - ./headscale/config.yaml:/etc/headscale/config.yaml:ro
@@ -75,9 +60,17 @@ services:
       - "traefik.http.routers.headscale.tls=true"
       - "traefik.http.routers.headscale.tls.certresolver=le"
       - "traefik.http.services.headscale.loadbalancer.server.port=8080"
-      - "traefik.http.routers.headscale.middlewares=sec-headers@file,compress@file,rate-limit@file"
 
-# secrets are optional and handled via entrypoint scripts
+      # CORS for Headscale API requests
+      # Comment this if you want to use the UI on same domain as headscale
+      - "traefik.http.middlewares.hs-cors.headers.accessControlAllowOriginList=${HEADSCALE_UI_FQDN}"
+      - "traefik.http.middlewares.hs-cors.headers.accessControlAllowMethods=GET,POST,PUT,PATCH,DELETE,OPTIONS"
+      - "traefik.http.middlewares.hs-cors.headers.accessControlAllowHeaders=Authorization,Content-Type,Accept,Origin"
+      - "traefik.http.middlewares.hs-cors.headers.accessControlAllowCredentials=true"
+      - "traefik.http.middlewares.hs-cors.headers.addVaryHeader=true"
+
+      # Apply CORS middleware to headscale API
+      - "traefik.http.routers.headscale.middlewares=hs-cors@docker"
 
 networks:
   edge:
